@@ -171,4 +171,4 @@ ggplot2::ggplot(NULL, ggplot2::aes(x=coef)) +
   
 Dans la figure 4, on peut obtenir les mêmes moyennes d'hypothèses comme dans la figure 2. Cependant la zone construit plus large, et est entre environ -70 et 100. On peut encore considérer, c'est également ici où il y a la même risque comme la risque précédente car il existe la différence de moyenne entre H2 original (60) et H2 après l'avoir coupé (40).  
 En conséquence, Dans les grandes données et les 3 observations des données, il existe la risque pour adopter l'hypothèse 1 et l'hypothèse erronées. Dans le cas de 1ère hypothèse, il existe la risque pour ne conclure les erreures sur la différence entre deux groupes. Dans le cas de 2ème hypothèse, il y a la risque car il prend beacoup de différences de la moyenne d'entre grandes données et 3 observations données (petites données) : 60 vs 40.
-Et, la différence de la question 2 et 3, est la taille des données. on peut savoir que plus les tailles des données sera petites, plus la force statistique réduit car deux graphiques se chevauchent
+Et, la différence de la question 2 et 3, est la taille des données.
