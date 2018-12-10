@@ -1,0 +1,174 @@
+---
+title: "Assignment 3"
+author: "JINWOO CHA"
+date: "07/12/2018"
+output: html_document
+---
+
+```{r include=FALSE}
+library(devtools)
+library(magrittr)
+library(dplyr)
+source("functions.r")
+```
+
+```{r, include=FALSE}
+`%>%` <- magrittr::`%>%`
+devtools::install_github("ewan/stats_course", subdir="data/clark_judgments")
+acceptability <- clarkjudgments::acceptability
+mop100 <- dplyr::filter(acceptability, MOP == "MOP100")
+```
+
+
+### Exercice 1
+```{r}
+mop100 <- dplyr::group_by(mop100, language) %>% dplyr::ungroup()
+plot_a_mop100 <- ggplot2::ggplot(mop100, ggplot2::aes(x = rating)) + 
+                 ggplot2::geom_histogram(binwidth = 1) + 
+                 ggplot2::facet_grid(language ~.)
+plot_a_mop100
+
+
+a_mop100 <- mop100 %>%
+  dplyr::mutate(lang_lin = ifelse(language == "adger-bad", 0, 1))
+
+m1 <- lm(rating ~ language,data= a_mop100)
+
+plot_b_mop100 <- ggplot2::ggplot(data = a_mop100,
+                 ggplot2::aes(x= lang_lin, y= rating)) +
+                 ggplot2::geom_point(alpha = 0.1)+
+                 ggplot2::geom_abline(slope=coef(m1)[2], intercept=coef(m1)[1], colour="red")
+
+plot_b_mop100
+```
+
+Tout d'abord, on peus savoir que la moyenne de gourpe 'good' est plus grande que la moyenne de groupe 'bad. (car le chiffre 0 indique adger-bad et le chiffre 1 indique adger-good). C'est ici où on ne peut pas adapter le simple modèle linéaire. Parce que, d'abord, la variable dépendante 'rating' est limite entre 0 et 100. Et, il existe la variable de dummy pour 'adger-good' et 'adger-bad'. s'il en est ainsi, on ne peut pas prévoir les autres valeurs par le simple modèle linéaire. Dernièrement, c'est ici où le Gaussian, il est la loi normale. Cependant, on peut savoir ne pas être la loi nomrmale par ci-dessus des graphiques. On peut supposer la distribution de poisson.  
+C'est pourquoi, ici, on peut considérer de mieux utiliser le modéle de regression logistique que le simple modèle linéaire.  
+
+### Exercice 2  
+
+Tout d'abord, Calculer les moyennes et les déviations normales
+```{r}
+df_good <- dplyr::filter(mop100, language=="adger-good") %>% 
+  dplyr::summarise(total = n(), mean = mean(rating), sd = sd(rating))
+df_bad <- dplyr::filter(mop100, language=="adger-bad") %>% 
+  dplyr::summarise(total = n(), mean = mean(rating), sd = sd(rating))
+
+sd_good <- df_good$sd
+sd_bad <- df_bad$sd
+t_good <- df_good$total
+t_bad <- df_bad$total
+m_good <- df_good$mean
+m_bad <- df_bad$mean
+```
+
+#### Hypothèse 1 : Pas différence pour la moyenne de distribution entre deux groupes
+Créer N_sampling
+```{r}
+diff_in_mean <- 0
+coef_h1 <- coef_s(diff_in_mean, t_good, t_bad, sd_good, sd_bad, s_df, N_SAMPLES = 9999)
+```
+
+Plot
+```{r}
+ggplot2::ggplot(coef_h1, ggplot2::aes(x = coef)) + 
+  ggplot2::geom_vline(xintercept = mean(coef_h1$coef), linetype="solid", size=1) +
+  ggplot2::geom_histogram(binwidth = 0.1, fill="skyblue", alpha=0.5, col="black")
+```
+  
+#### Hypothèse 2 : Différence pour la moyenne de distribution entre deux groupes
+```{r, cache=TRUE}
+diff_in_mean <- m_good - m_bad
+coef_h2 <- coef_s(diff_in_mean, t_good, t_bad, sd_good, sd_bad, s_df, N_SAMPLES = 9999)
+```
+
+Now plot the distribution of many coefficients
+```{r}
+ggplot2::ggplot(coef_h2, ggplot2::aes(x = coef)) + 
+   ggplot2::geom_vline(xintercept = mean(coef_h2$coef), linetype="solid", size=1) +
+  ggplot2::geom_histogram(binwidth = 0.1, fill="red", alpha=0.5, col="black")
+```
+
+Comparing the 2 sampling distributions under H1 and H2 in the same graph
+```{r}
+ggplot2::ggplot(NULL, ggplot2::aes(x=coef)) + 
+      ggplot2::geom_histogram(data = coef_h1, fill= "skyblue", alpha=0.5, col="black", binwidth = 0.4) +
+      ggplot2::geom_vline(xintercept = mean(coef_h1$coef), linetype="solid", size=0.5) +
+      ggplot2::geom_histogram(data = coef_h2, fill= "red", alpha=0.5, col="black", binwidth = 0.4)+
+      ggplot2::geom_vline(xintercept = mean(coef_h2$coef), linetype="solid", size=0.5)+
+      ggplot2::labs(title="[Figure 1] Comparaison entre deux hyphotèses", subtitle = "H1 (skyblue) vs H2 (red)")
+```
+  
+  
+Dans le cas de modèle linéaire concernant raking et language, la variable y indique "raking" et la varaible x indique "language". Et, le coefficient de language, peut interpréter comme la différence de moyenne(Good et Bad). En plus, vu que l'on observe le graphique ci-desssus, on peut savoir le fait que la valeur exsite moins 0 pour l'hypothèse 1, mais on ne peut pas regarder la valeur plus 100 (l'hypothèse se situe environ 60). Donc on a encore besoin de simuler plus proche de l'intervalle entre deux hypothèses.
+
+Function pour couper dehors 0 et 100
+
+2 Hypothèses, après avoir coupé la valeur dehors 0 et 100, reprocéder
+```{r}
+diff_in_mean <- m_good - m_bad
+coef_h1_cut <- coef_s(0, t_good, t_bad, sd_good, sd_bad, s_df_cut, N_SAMPLES = 9999)
+coef_h2_cut <- coef_s(diff_in_mean, t_good, t_bad, sd_good, sd_bad, s_df_cut, N_SAMPLES = 9999)
+```
+
+après avoir coupé
+```{r}
+ggplot2::ggplot(NULL, ggplot2::aes(x=coef)) + 
+      ggplot2::geom_histogram(data = coef_h1_cut, fill= "skyblue", alpha=.4, col="black", binwidth = 0.4) +
+      ggplot2::geom_vline(xintercept = mean(coef_h1_cut$coef), linetype="solid", size=0.5) +
+      ggplot2::geom_histogram(data = coef_h2_cut, fill= "red", alpha=.4, col="black", binwidth = 0.4)+
+      ggplot2::geom_vline(xintercept = mean(coef_h2_cut$coef), linetype="solid", size=0.5)+
+      ggplot2::labs(title="[Figure 2] Comparaison entre deux hypotheses", subtitle = "H1 (skyblue) vs H2 (red)")
+```
+
+Après avoir coupé dehors 0 et 100, on peut observer : Deux hypothèse 1 et 2 ne sont pas lois normales. Dans la figure 1, la moyenne de l'hypothèse 2 est d'environ 60. Cepedant, dans la figure 2, on peut savoir le résultat que la moyenne de l'hypothèse 2 représente environ 40. C'est pourquoi, la moyenne de l'hypothèse 2 a beaucoup de différences entre deux.  
+Dans le cas de la graphique de H1 ci-dessus, on peut considérer d'être loi normale. Cependant, on regarde plus détaillé au centre, on peut savoir que les pics paraissent discontinus.
+  
+S'il en est ainsi, bien que, dans la figure 1  et la figure 2, la moyenne d'hypothèse 1 indique à 0, il existe la risque pour que l'on ne puisse pas adopter l'hypothèse afin d'obtenir le p-value sûr car dans la figure 2, l'hypothèse 1 n'est pas loi normale, et on peut connaitre que deux groupe ne sont pas égales. Et, dans l'hypothèse 2,il y a la risque pour estimer mal la différence entre deux. Car il prend beaucoup de différence entre deux graphiques (dans figure 1 : hypothèse 2 = environ 60, dans figure 2 : hypothèse 2 = environ 40).
+
+
+### Exercice 3
+Réduire la taille des données seulement 3 observations
+```{r}
+diff_in_mean <- m_good - m_bad
+ob_good <- 3
+ob_bad <- 3
+coef_h1_3ob <- coef_s(0, ob_good, ob_bad, sd_good, sd_bad, s_df, N_SAMPLES = 9999)
+coef_h2_3ob <- coef_s(diff_in_mean, ob_good, ob_bad, sd_good, sd_bad, s_df, N_SAMPLES = 9999)
+```
+
+```{r}
+ggplot2::ggplot(NULL, ggplot2::aes(x=coef)) + 
+      ggplot2::geom_histogram(data = coef_h1_3ob, fill= "skyblue", alpha=0.5, col="black", binwidth = 1) +
+      ggplot2::geom_vline(xintercept = mean(coef_h1_3ob$coef), linetype="solid", size=1) +
+      ggplot2::geom_histogram(data = coef_h2_3ob, fill= "red", alpha=0.5, col="black", binwidth = 1)+
+      ggplot2::geom_vline(xintercept = mean(coef_h2_3ob$coef), linetype="solid", size=1)+
+      ggplot2::labs(title="[Figure 3] Comparaison entre deux hypothèses pour 3 observations", subtitle = "H1 (skyblue) vs H2 (red)") 
+```
+  
+  
+Dans la figure 3, on peut d'abord savoir le résultat que les moyennes de deux hypothèses sont maintenues(H1 : 0, H2 : environ 60). C'est-à-dire, on peut comprendre que les moyennes n'ont pas changé avec les moyennes précédentes. Cependant, la zone est plus large que la zone précédante (environ à partir de -85 jusqu'à 150). Et, deux graphiques se chevauchent. En conséquence, on peut supposer que si l'observation est petite, chaque zone d'hypothèse est plus large.
+
+
+Reprocéder 
+```{r, cache=TRUE}
+diff_in_mean <- m_good - m_bad
+ob_good <- 3
+ob_bad <- 3
+coef_h1_3ob_cut <- coef_s(0, ob_good, ob_bad, sd_good, sd_bad, s_df_cut, N_SAMPLES = 9999)
+coef_h2_3ob_cut <- coef_s(diff_in_mean, ob_good, ob_bad, sd_good, sd_bad, s_df_cut, N_SAMPLES = 9999)
+```
+
+après l'avoir coupé
+```{r}
+ggplot2::ggplot(NULL, ggplot2::aes(x=coef)) + 
+      ggplot2::geom_histogram(data = coef_h1_3ob_cut, fill= "skyblue", alpha=0.5, col="black", binwidth = 1) +
+      ggplot2::geom_vline(xintercept = mean(coef_h1_3ob_cut$coef), linetype="solid", size=1) +
+      ggplot2::geom_histogram(data = coef_h2_3ob_cut, fill= "red", alpha=0.5, col="black", binwidth = 1)+
+      ggplot2::geom_vline(xintercept = mean(coef_h2_3ob_cut$coef), linetype="solid", size=1)+
+      ggplot2::labs(title="[Figure 4] Comparaison entre deux hypothèse pour 3 observations coupées", subtitle = "H1 (skyblue) vs H2 (red)") 
+```
+  
+Dans la figure 4, on peut obtenir les mêmes moyennes d'hypothèses comme dans la figure 2. Cependant la zone construit plus large, et est entre environ -70 et 100. On peut encore considérer, c'est également ici où il y a la même risque comme la risque précédente car il existe la différence de moyenne entre H2 original (60) et H2 après l'avoir coupé (40).  
+En conséquence, Dans les grandes données et les 3 observations des données, il existe la risque pour adopter l'hypothèse 1 et l'hypothèse erronées. Dans le cas de 1ère hypothèse, il existe la risque pour ne conclure les erreures sur la différence entre deux groupes. Dans le cas de 2ème hypothèse, il y a la risque car il prend beacoup de différences de la moyenne d'entre grandes données et 3 observations données (petites données) : 60 vs 40.
+Et, la différence de la question 2 et 3, est la taille des données. on peut savoir que plus les tailles des données sera petites, plus la force statistique réduit car deux graphiques se chevauchent
